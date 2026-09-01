@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.tmp
+.conversation-trees/
+node_modules/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Internal design documents are intentionally not published.
+conversation-tree-plugin-design.md

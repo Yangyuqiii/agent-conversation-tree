@@ -1,0 +1,5 @@
+interface:
+  display_name: "会话树"
+  short_description: "将线性 Codex 对话画成可 fork、可合并的会话树"
+  brand_color: "#0F766E"
+  default_prompt: "使用 $conversation-tree，把当前会话画成树；需要时 fork 我指定的要点，并按我选的模式合并回主线。"

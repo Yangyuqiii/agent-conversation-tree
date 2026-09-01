@@ -1,0 +1,20 @@
+{
+  "name": "conversation-tree-local",
+  "interface": {
+    "displayName": "Conversation Tree Local"
+  },
+  "plugins": [
+    {
+      "name": "conversation-tree",
+      "source": {
+        "source": "local",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Codex 会话树</title>
+  <style>
+    :root{color-scheme:dark;--bg:#090d12;--panel:#101720;--panel2:#151f2a;--line:#344250;--text:#e7edf3;--muted:#8fa0af;--teal:#36d1b4;--teal2:#153f3b;--violet:#a78bfa;--amber:#f4bd61;--red:#ff7a90;--shadow:0 18px 55px rgba(0,0,0,.38)}
+    *{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);font-family:Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--text)}
+    button,input,textarea{font:inherit}button{color:inherit}
+    #app{height:100%;display:grid;grid-template-rows:58px 1fr}
+    .topbar{height:58px;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid #22303b;background:rgba(9,13,18,.92);backdrop-filter:blur(14px);z-index:20}
+    .mark{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--teal2);color:var(--teal);font-weight:800}.title-wrap{min-width:0;flex:1}.title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.subtitle{font-size:11px;color:var(--muted);margin-top:2px}.tools{display:flex;gap:7px}.btn{border:1px solid #30404e;background:#121a23;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px}.btn:hover{border-color:#526778;background:#18232e}.btn.primary{background:#0f665a;border-color:#168b79}.btn.primary:hover{background:#13786a}.btn:disabled{opacity:.45;cursor:not-allowed}
+    .workspace{position:relative;overflow:hidden}.canvas{position:absolute;inset:0;cursor:grab;background-color:var(--bg);background-image:linear-gradient(#18222b 1px,transparent 1px),linear-gradient(90deg,#18222b 1px,transparent 1px),linear-gradient(#111920 1px,transparent 1px),linear-gradient(90deg,#111920 1px,transparent 1px);background-size:80px 80px,80px 80px,16px 16px,16px 16px}.canvas.dragging{cursor:grabbing}
+    .world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}.edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}.edge{fill:none;stroke:#405260;stroke-width:2}.edge.branch{stroke:var(--violet);stroke-dasharray:6 5}.edge.current{stroke:var(--teal)}
+    .node{position:absolute;width:260px;min-height:116px;border:1px solid #31404d;border-radius:13px;background:linear-gradient(155deg,#151f29,#101820);box-shadow:var(--shadow);overflow:hidden;cursor:pointer;transition:border-color .15s,transform .15s}.node:hover{border-color:#5d7181;transform:translateY(-2px)}.node.selected{border-color:var(--teal);box-shadow:0 0 0 1px rgba(54,209,180,.25),var(--shadow)}.node.shared{opacity:.45}.node.task{width:286px;border-color:#236e64;background:linear-gradient(145deg,#153731,#101a20)}.node.branch-task{border-color:#655399;background:linear-gradient(145deg,#28213d,#151923)}.node.point{width:240px;min-height:78px;border-color:#66559a;background:linear-gradient(145deg,#251f38,#141922)}.node.point .node-head{padding:7px 10px}.node.point .node-body{padding:9px 10px}.node.point .prompt{font-size:12px;-webkit-line-clamp:2}.node.point .answer{margin-top:4px;-webkit-line-clamp:1}
+    .node-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #283744}.badge{font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:999px;background:#263440;color:#a9bac7}.badge.user{background:#173d39;color:#6ce5ce}.badge.branch{background:#32284c;color:#c5b5ff}.node-label{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.dot{width:7px;height:7px;border-radius:50%;background:#647789}.dot.active,.dot.inProgress,.dot.completed{background:var(--teal)}.dot.failed{background:var(--red)}.dot.interrupted{background:#e7a84b}
+    .node-body{padding:11px 12px 12px}.prompt{font-size:13px;line-height:1.45;font-weight:650;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.answer{font-size:11px;line-height:1.45;color:var(--muted);margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.node-foot{display:flex;align-items:center;justify-content:space-between;padding:0 12px 10px;color:#708392;font-size:10px}.follow-count{color:var(--violet)}
+    .inspector{position:absolute;top:14px;right:14px;width:min(360px,calc(100% - 28px));max-height:calc(100% - 28px);display:flex;flex-direction:column;border:1px solid #2b3b48;border-radius:14px;background:rgba(14,21,29,.96);box-shadow:var(--shadow);backdrop-filter:blur(12px);z-index:10;transform:translateX(calc(100% + 30px));transition:transform .2s}.inspector.open{transform:translateX(0)}.inspect-head{display:flex;align-items:flex-start;gap:8px;padding:14px;border-bottom:1px solid #263540}.inspect-title{font-size:14px;font-weight:700;line-height:1.35;flex:1}.close{border:0;background:transparent;color:var(--muted);font-size:19px;cursor:pointer}.inspect-scroll{padding:14px;overflow:auto}.section-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#718493;margin:0 0 7px}.full-text{white-space:pre-wrap;font-size:12px;line-height:1.55;color:#c7d1da;max-height:190px;overflow:auto;background:#0b1117;border-radius:9px;padding:10px;margin-bottom:14px}.followups{display:flex;flex-direction:column;gap:7px}.followup{border:1px solid #413763;background:#211b33;border-radius:9px;padding:9px;text-align:left;font-size:12px;line-height:1.4;cursor:pointer}.followup:hover{border-color:#7966af}.inspect-actions{display:flex;gap:8px;padding:13px 14px;border-top:1px solid #263540}.inspect-actions .btn{flex:1}
+    .legend{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:12px;background:rgba(12,18,25,.86);border:1px solid #24333e;border-radius:9px;padding:7px 10px;color:var(--muted);font-size:10px;z-index:6}.key{display:flex;align-items:center;gap:5px}.swatch{width:14px;height:2px;background:var(--teal)}.swatch.branch{background:var(--violet)}
+    .empty,.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px}.spinner{width:24px;height:24px;border:2px solid #30404d;border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}@keyframes spin{to{transform:rotate(360deg)}}
+    .toast{position:absolute;left:50%;bottom:28px;transform:translate(-50%,20px);padding:10px 13px;border:1px solid #315046;border-radius:9px;background:#112a25;color:#b7f5e8;font-size:12px;opacity:0;pointer-events:none;transition:.2s;z-index:40}.toast.show{opacity:1;transform:translate(-50%,0)}
+    dialog{width:min(480px,calc(100% - 32px));border:1px solid #354653;border-radius:14px;background:#111922;color:var(--text);box-shadow:var(--shadow);padding:0}dialog::backdrop{background:rgba(0,0,0,.62)}.modal-head{padding:16px 18px;border-bottom:1px solid #293844;font-weight:700}.modal-body{padding:16px 18px}.field{display:block;margin-bottom:13px}.field span{display:block;font-size:11px;color:var(--muted);margin-bottom:6px}.field input,.field textarea{width:100%;border:1px solid #334451;border-radius:8px;background:#0b1117;color:var(--text);padding:9px 10px;outline:none}.field textarea{height:88px;resize:vertical}.field input:focus,.field textarea:focus{border-color:var(--teal)}.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:13px 18px;border-top:1px solid #293844}.error{color:#ff9aab;font-size:11px;min-height:16px;margin-top:-5px}
+    @media(max-width:700px){.subtitle{display:none}.tools .label{display:none}.node{width:230px}.legend{display:none}}
+  </style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="mark">⌘</div>
+    <div class="title-wrap"><div class="title" id="title">Codex 会话树</div><div class="subtitle" id="subtitle">读取原生任务历史…</div></div>
+    <div class="tools"><button class="btn" id="root">↩ <span class="label">返回主链路</span></button><button class="btn" id="refresh">↻ <span class="label">刷新</span></button><button class="btn" id="fit">⌗ <span class="label">适配视图</span></button><button class="btn" id="current">◎ <span class="label">当前任务</span></button></div>
+  </header>
+  <main class="workspace">
+    <div class="canvas" id="canvas"><div class="world" id="world"><svg class="edges" id="edges"></svg><div id="nodes"></div></div></div>
+    <aside class="inspector" id="inspector"><div class="inspect-head"><div class="inspect-title" id="inspect-title"></div><button class="close" id="close">×</button></div><div class="inspect-scroll" id="inspect-scroll"></div><div class="inspect-actions"><button class="btn primary" id="fork">从这里分支</button><button class="btn" id="return-root">返回主链路</button></div></aside>
+    <div class="legend"><span class="key"><i class="swatch"></i>主线</span><span class="key"><i class="swatch branch"></i>原生分支</span><span>滚轮缩放 · 拖动画布</span></div>
+    <div class="loading" id="loading"><div><div class="spinner"></div><span>正在构建会话图…</span></div></div>
+    <div class="toast" id="toast"></div>
+  </main>
+</div>
+<dialog id="fork-dialog">
+  <form method="dialog" id="fork-form">
+    <div class="modal-head">创建 Codex 原生分支</div>
+    <div class="modal-body">
+      <label class="field"><span>分支任务标题（保留你的原文）</span><input id="fork-title" maxlength="140" required /></label>
+      <label class="field"><span>可选：立即在分支中追问</span><textarea id="fork-prompt" placeholder="留空则只创建分支；填写后会在新任务中立即开始这一轮。"></textarea></label>
+      <div class="error" id="fork-error"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" type="button" id="fork-cancel">取消</button><button class="btn primary" id="fork-submit" type="submit">创建分支</button></div>
+  </form>
+</dialog>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const state = { tree:null, selected:null, transform:{x:54,y:80,scale:.9}, dragging:null, positions:new Map(), bounds:null, pollTimer:null };
+  const params = new URLSearchParams(location.search);
+  const localToken = params.get('token');
+  const initialThreadId = params.get('threadId');
+  const bridge = () => window.openai || null;
+
+  function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2600)}
+  function unwrap(result){return result?.structuredContent?.tree || result?.structuredContent || result?.tree || result?.toolOutput?.tree || result}
+  async function callTool(name,args){
+    if(bridge()?.callTool) return bridge().callTool(name,args);
+    const response=await fetch(`/api/tool?token=${encodeURIComponent(localToken||'')}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,arguments:args})});
+    const data=await response.json();if(!response.ok)throw new Error(data.error||response.statusText);return data;
+  }
+  function hasActiveTurn(tree){return (tree?.lanes||[]).some(lane=>(lane.turns||[]).some(turn=>statusName(turn.status)==='inProgress'))}
+  function scheduleActiveRefresh(threadId){clearTimeout(state.pollTimer);state.pollTimer=null;if(!hasActiveTurn(state.tree))return;state.pollTimer=setTimeout(()=>load(threadId,{fitView:false,quiet:true}),1500)}
+  async function load(threadId=state.tree?.currentThreadId||initialThreadId,{fitView=true,quiet=false}={}){
+    if(!quiet)$('loading').style.display='grid';
+    try{
+      const result=await callTool('conversation_tree_read',{threadId});
+      state.tree=unwrap(result); render();if(fitView)fit();scheduleActiveRefresh(threadId);
+    }catch(error){$('nodes').innerHTML=`<div class="empty" style="position:fixed">${escapeHtml(error.message)}</div>`;toast(`读取失败：${error.message}`)}
+    finally{if(!quiet)$('loading').style.display='none'}
+  }
+  function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+  function statusName(status){if(typeof status==='string')return status;return status?.type||status?.status||'stored'}
+  function statusLabel(status){return ({inProgress:'正在生成',completed:'已完成',interrupted:'已中断',failed:'失败',idle:'空闲',notLoaded:'未加载'})[statusName(status)]||statusName(status)}
+  function answerText(turn){if(turn.agent)return turn.agent;return ({inProgress:'正在生成回答…',interrupted:'回答已中断',failed:'回答失败',completed:'已完成（无文本回答）'})[statusName(turn.status)]||'尚无回答'}
+  function layout(tree){
+    const xGap=318,yGap=255,startX=80,startY=75;let nextY=startY;const positions=new Map();const laneY=new Map();
+    const byId=new Map(tree.lanes.map(l=>[l.id,l]));
+    const children=new Map();for(const lane of tree.lanes){const k=lane.forkedFromId||'root';if(!children.has(k))children.set(k,[]);children.get(k).push(lane)}
+    function placeLane(lane,depth){
+      const y=nextY;laneY.set(lane.id,y);
+      const baseX=lane.root?startX:startX+Math.max(lane.sharedTurnCount,1)*xGap;
+      positions.set(`task:${lane.id}`,{x:baseX-20,y,w:286,h:122,type:'task'});
+      const unique=lane.turns.filter(t=>lane.root||!t.shared);
+      let maxPointCount=0;
+      unique.forEach((turn,i)=>{const turnPos={x:baseX+(i+1)*xGap,y,w:260,h:126,type:'turn',lane,turn};positions.set(`${lane.id}:${turn.id}`,turnPos);const points=turn.explicitPoints||[];maxPointCount=Math.max(maxPointCount,points.length);points.forEach((point,j)=>positions.set(`point:${lane.id}:${turn.id}:${point.id}`,{x:turnPos.x+10,y:turnPos.y+155+j*96,w:240,h:78,type:'point',lane,turn,point}))});
+      nextY+=Math.max(yGap,165+maxPointCount*96+80);
+      for(const child of children.get(lane.id)||[])placeLane(child,depth+1);
+    }
+    for(const root of children.get('root')||[])placeLane(root,0);
+    for(const lane of tree.lanes)if(!laneY.has(lane.id))placeLane(lane,0);
+    let maxX=700,maxY=400;for(const p of positions.values()){maxX=Math.max(maxX,p.x+p.w+100);maxY=Math.max(maxY,p.y+p.h+100)}
+    return {positions,width:maxX,height:maxY,byId};
+  }
+  function render(){
+    const tree=state.tree;if(!tree)return;const model=layout(tree);state.positions=model.positions;state.bounds={width:model.width,height:model.height};
+    $('title').textContent=tree.title;$('subtitle').textContent=`${tree.lanes.length} 个任务 · ${tree.explicitPointCount||0} 个已确认要点 · 原生 session ${String(tree.sessionId||tree.rootThreadId).slice(0,8)}…`;$('root').disabled=tree.currentThreadId===tree.rootThreadId;$('return-root').disabled=tree.currentThreadId===tree.rootThreadId;
+    $('edges').setAttribute('width',model.width);$('edges').setAttribute('height',model.height);$('world').style.width=`${model.width}px`;$('world').style.height=`${model.height}px`;
+    const edgeHtml=[];const nodeHtml=[];
+    function curve(a,b,cls=''){const ax=a.x+a.w,ay=a.y+a.h/2,bx=b.x,by=b.y+b.h/2,mx=ax+(bx-ax)*.5;edgeHtml.push(`<path class="edge ${cls}" d="M${ax},${ay} C${mx},${ay} ${mx},${by} ${bx},${by}"/>`)}
+    function curveDown(a,b){const ax=a.x+a.w/2,ay=a.y+a.h,bx=b.x+b.w/2,by=b.y,my=ay+(by-ay)*.5;edgeHtml.push(`<path class="edge branch" d="M${ax},${ay} C${ax},${my} ${bx},${my} ${bx},${by}"/>`)}
+    for(const lane of tree.lanes){
+      const taskPos=model.positions.get(`task:${lane.id}`);const cls=lane.root?'task':'task branch-task';
+      nodeHtml.push(`<article class="node ${cls}" data-kind="task" data-thread="${lane.id}" style="left:${taskPos.x}px;top:${taskPos.y}px"><div class="node-head"><span class="badge ${lane.root?'user':'branch'}">${lane.root?'主任务':'原生分支'}</span><span class="node-label">${lane.current?'当前打开':'Codex 任务'}</span><i class="dot ${statusName(lane.status)}"></i></div><div class="node-body"><div class="prompt">${escapeHtml(lane.name)}</div><div class="answer">${escapeHtml(lane.preview||lane.id)}</div></div><div class="node-foot"><span>${lane.turns.length} 轮</span><span>${lane.id.slice(0,8)}</span></div></article>`);
+      const unique=lane.turns.filter(t=>lane.root||!t.shared);let previous=taskPos;
+      for(const turn of unique){const pos=model.positions.get(`${lane.id}:${turn.id}`);curve(previous,pos,lane.current?'current':'');previous=pos;
+        const pointCount=(turn.explicitPoints||[]).length;nodeHtml.push(`<article class="node" data-kind="turn" data-thread="${lane.id}" data-turn="${turn.id}" style="left:${pos.x}px;top:${pos.y}px"><div class="node-head"><span class="badge user">第 ${turn.index+1} 轮</span><span class="node-label">${escapeHtml(lane.name)}</span><i class="dot ${statusName(turn.status)}"></i></div><div class="node-body"><div class="prompt">${escapeHtml(turn.user||'（无文本输入）')}</div><div class="answer">${escapeHtml(answerText(turn))}</div></div><div class="node-foot"><span>${escapeHtml(statusLabel(turn.status))}</span><span class="follow-count">${pointCount?`${pointCount} 个已确认要点`:(turn.followups.length?`${turn.followups.length} 个可追问点`:'')}</span></div></article>`);for(const point of turn.explicitPoints||[]){const pointPos=model.positions.get(`point:${lane.id}:${turn.id}:${point.id}`);curveDown(pos,pointPos);nodeHtml.push(`<article class="node point" data-kind="point" data-thread="${lane.id}" data-turn="${turn.id}" data-point="${escapeHtml(point.id)}" style="left:${pointPos.x}px;top:${pointPos.y}px"><div class="node-head"><span class="badge branch">用户已确认</span><span class="node-label">可追问</span></div><div class="node-body"><div class="prompt">${escapeHtml(point.title)}</div><div class="answer">${escapeHtml(point.excerpt)}</div></div></article>`)}}
+      if(!lane.root&&lane.forkedFromId){const parent=model.byId.get(lane.forkedFromId);let anchor=model.positions.get(`task:${parent?.id}`);if(parent&&lane.forkPointTurnId)anchor=model.positions.get(`${parent.id}:${lane.forkPointTurnId}`)||anchor;if(anchor&&taskPos)curve(anchor,taskPos,'branch')}
+    }
+    $('edges').innerHTML=edgeHtml.join('');$('nodes').innerHTML=nodeHtml.join('');
+    document.querySelectorAll('.node').forEach(el=>el.addEventListener('click',()=>select(el.dataset.thread,el.dataset.turn||null,el,el.dataset.point||null)));
+    applyTransform();
+  }
+  function findLane(id){return state.tree?.lanes.find(l=>l.id===id)}
+  function select(threadId,turnId,element,pointId=null){
+    document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));element?.classList.add('selected');
+    const lane=findLane(threadId);const turn=turnId?lane?.turns.find(t=>t.id===turnId):null;const point=pointId?turn?.explicitPoints?.find(p=>p.id===pointId):null;state.selected={threadId,turnId,turn,lane,point};
+    $('inspect-title').textContent=point?.title||(turn?(turn.user||`第 ${turn.index+1} 轮`):lane.name);
+    const parts=[];if(point){parts.push(`<div class="section-title">用户已确认的可追问要点</div><div class="full-text">${escapeHtml(point.title)}</div>`);if(point.excerpt)parts.push(`<div class="section-title">原回答摘要</div><div class="full-text">${escapeHtml(point.excerpt)}</div>`)}else if(turn){parts.push(`<div class="section-title">用户原文</div><div class="full-text">${escapeHtml(turn.userFull||turn.user)}</div>`);parts.push(`<div class="section-title">回答摘要</div><div class="full-text">${escapeHtml(turn.agentFull||turn.agent||'暂无')}</div>`);if(turn.followups.length){parts.push(`<div class="section-title">自动识别的可追问建议</div><div class="followups">${turn.followups.map((f,i)=>`<button class="followup" data-follow="${i}">${escapeHtml(f)}</button>`).join('')}</div>`)}}else{parts.push(`<div class="section-title">任务</div><div class="full-text">${escapeHtml(lane.preview||lane.id)}</div>`)}
+    $('inspect-scroll').innerHTML=parts.join('');$('inspector').classList.add('open');
+    document.querySelectorAll('[data-follow]').forEach(btn=>btn.addEventListener('click',()=>showFork(turn.followups[Number(btn.dataset.follow)])));
+  }
+  function showFork(followup=''){
+    if(!state.selected)return;const base=followup||state.selected.point?.title||state.selected.turn?.user||state.selected.lane?.name||'新分支';$('fork-title').value=base.slice(0,140);$('fork-prompt').value=followup||state.selected.point?.title||''; $('fork-error').textContent='';$('fork-dialog').showModal();
+  }
+  async function forkSelected(event){
+    event.preventDefault();if(!state.selected)return;const submit=$('fork-submit');submit.disabled=true;$('fork-error').textContent='';
+    try{const result=await callTool('conversation_tree_fork',{threadId:state.selected.threadId,lastTurnId:state.selected.turnId||undefined,title:$('fork-title').value.trim(),prompt:$('fork-prompt').value.trim()||undefined});const data=result?.structuredContent||result;$('fork-dialog').close();toast(data.turnStarted?'分支已创建，正在生成回答…':`已创建原生分支：${data.childThreadId?.slice(0,8)||'完成'}`);await load(data.childThreadId||state.selected.threadId)}catch(error){$('fork-error').textContent=error.message}finally{submit.disabled=false}
+  }
+  async function returnToRoot(){
+    const id=state.tree?.rootThreadId;if(!id)return;if(id===state.tree.currentThreadId){toast('当前已经位于主链路');return}
+    clearTimeout(state.pollTimer);state.pollTimer=null;$('inspector').classList.remove('open');state.selected=null;
+    const url=new URL(location.href);url.searchParams.set('threadId',id);history.replaceState(null,'',url);await load(id);toast('已返回主链路')
+  }
+  function applyTransform(){$('world').style.transform=`translate(${state.transform.x}px,${state.transform.y}px) scale(${state.transform.scale})`}
+  function fit(){if(!state.bounds)return;const rect=$('canvas').getBoundingClientRect();const scale=Math.min(1,Math.max(.28,Math.min((rect.width-80)/state.bounds.width,(rect.height-80)/state.bounds.height)));state.transform={x:40,y:40,scale};applyTransform()}
+  function centerCurrent(){const lane=state.tree?.lanes.find(l=>l.current);if(!lane)return;const pos=state.positions.get(`task:${lane.id}`);if(!pos)return;const rect=$('canvas').getBoundingClientRect();state.transform.x=rect.width/2-(pos.x+pos.w/2)*state.transform.scale;state.transform.y=rect.height/2-(pos.y+pos.h/2)*state.transform.scale;applyTransform()}
+  const canvas=$('canvas');canvas.addEventListener('wheel',e=>{e.preventDefault();const rect=canvas.getBoundingClientRect();const px=e.clientX-rect.left,py=e.clientY-rect.top;const old=state.transform.scale;const next=Math.min(1.8,Math.max(.25,old*Math.exp(-e.deltaY*.001)));state.transform.x=px-(px-state.transform.x)*(next/old);state.transform.y=py-(py-state.transform.y)*(next/old);state.transform.scale=next;applyTransform()},{passive:false});
+  canvas.addEventListener('pointerdown',e=>{if(e.target.closest('.node,.inspector'))return;state.dragging={x:e.clientX,y:e.clientY,tx:state.transform.x,ty:state.transform.y};canvas.setPointerCapture(e.pointerId);canvas.classList.add('dragging')});canvas.addEventListener('pointermove',e=>{if(!state.dragging)return;state.transform.x=state.dragging.tx+e.clientX-state.dragging.x;state.transform.y=state.dragging.ty+e.clientY-state.dragging.y;applyTransform()});canvas.addEventListener('pointerup',()=>{state.dragging=null;canvas.classList.remove('dragging')});
+  $('root').onclick=returnToRoot;$('refresh').onclick=()=>load();$('fit').onclick=fit;$('current').onclick=centerCurrent;$('close').onclick=()=>$('inspector').classList.remove('open');$('fork').onclick=()=>showFork();$('return-root').onclick=returnToRoot;$('fork-cancel').onclick=()=>$('fork-dialog').close();$('fork-form').addEventListener('submit',forkSelected);
+  window.addEventListener('openai:set_globals',event=>{const output=event?.detail?.globals?.toolOutput||event?.detail?.toolOutput;if(output?.tree){state.tree=output.tree;render();fit();scheduleActiveRefresh(state.tree.currentThreadId)}});
+  const initial=bridge()?.toolOutput?.tree||bridge()?.toolOutput?.structuredContent?.tree;
+  if(initial){state.tree=initial;render();fit();scheduleActiveRefresh(state.tree.currentThreadId);$('loading').style.display='none'}else load();
+})();
+</script>
+</body>
+</html>
